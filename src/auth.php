@@ -1,25 +1,22 @@
 <?php
 
-class Node
+abstract class Node
 {
     protected string $tagName;
     protected array $attributes = [];
-    protected array $children = [];
-    protected string $content;
-    public function addContent(string $content): self
+    protected array $childElements = [];
+    protected string $content = '';
+
+    public function addChild($node): self
     {
-        $this->content = $content;
+        $this->childElements[] = $node;
         return $this;
     }
 
-    public function setTagName(string $tagName): self
+
+    public function addContent(string $content): Node
     {
-        $this->tagName = $tagName;
-        return $this;
-    }
-    public function setAttribute(string $attribute, string $value): self
-    {
-        $this->attributes[$attribute] = $value;
+        $this->content = $content;
         return $this;
     }
 
@@ -29,66 +26,81 @@ class Node
         return $this;
     }
 
-    public function setClass(string $class): self
+    public function renderChild(): string
     {
-        if (!isset($this->attributes['class'])) {
-            $this->attributes['class'] = '';
+        $childRendered = '';
+
+        foreach ($this->childElements as $childElement){
+            $childRendered .= $childElement->render();
         }
-        $this->attributes['class'] .= "$class";
+        return $childRendered;
+    }
+
+    public function setAttribute(string $name, string $value): self
+    {
+        $this->attributes[$name] = $value;
         return $this;
     }
 
-    public function addChild(Node $child): self
+    protected function renderAttributes(): string
     {
-        $this->children[] = $child;
+        $attributes = '';
+        foreach ($this->attributes as $name => $value) {
+            $attributes .= " $name='$value'";
+        }
+        return $attributes;
+    }
+}
+
+
+class Div extends Node
+{
+    public function render(): string
+    {
+        return "<div{$this->renderAttributes()}>{$this->content}{$this->renderChild()}</div>";
+    }
+}
+
+
+class Span extends Node
+{
+    public function render(): string
+    {
+        return "<span{$this->renderAttributes()}>{$this->content}{$this->renderChild()}</span>";
+    }
+}
+
+
+class Input extends Node
+{
+    public function setType(string $type): self
+    {
+        $this->setAttribute('type', $type);
+        return $this;
+    }
+
+    public function setPlaceholder(string $placeholder): self
+    {
+        $this->setAttribute('placeholder', $placeholder);
         return $this;
     }
 
     public function render(): string
     {
-        $html = "<{$this->tagName}";
-        foreach ($this->attributes as $name => $value) {
-            $html .= " $name = '$value'";
-        }
-        $html .= ">";
-        foreach ($this->children as $child) {
-            $html .= $child->render();
-        }
-        $html .= "</{$this->tagName}>";
-        return $html;
-    }
 
-
-
-}
-
-class BlockNode extends Node
-{
-    public function __construct()
-    {
-        $this->tagName = "div";
+        $attributes = $this->renderAttributes();
+        return "<input{$attributes}>";
     }
 }
 
-class InlineNode extends Node
-{
-
-
-    public function __construct(string $content = '')
-    {
-
-        $this->tagName = "span";
-        $this->content = $content;
-    }
-}
 
 class ListNode extends Node
 {
     public function __construct(string $listType = 'ul')
     {
-        if ($listType == 'ul') {
+        if ($listType === 'ul') {
             $this->tagName = "ul";
-        } elseif ($listType == 'ol') {
+        } elseif ($listType ==='ol') {
             $this->tagName = "ol";
         } else {
             $this->tagName = "ul";
@@ -97,55 +109,49 @@ class ListNode extends Node
 
     public function addListItem(string $content): self
     {
-        $this->addChild((new Node())->setTagName('li')->addContent($content));
+        $this->addChild((new ListItem())->addContent($content));
         return $this;
+    }
+
+    public function render(): string
+    {
+        $list = "<{$this->tagName}{$this->renderAttributes()}>";
+        $list .= $this->renderChild();
+        $list .= "</{$this->tagName}>";
+        return $list;
     }
 }
 
-class InputNode extends Node
+
+class ListItem extends Node
 {
-    public function __construct()
+    public function render(): string
     {
-        $this->tagName = "div";
-        $this->setAttribute('class', 'form-group');
-    }
-
-    public function setInput(string $type, string $id, string $placeholder): self
-    {
-        $input = (new Node())->setTagName('input')
-            ->setAttribute('type', $type)
-            ->setId($id)
-            ->setAttribute('placeholder', $placeholder);
-        $this->addChild($input);
-        return $this;
-    }
-
-    public function setLabel(string $labelText, string $for): self
-    {
-        $label = (new Node())->setTagName('label')
-            ->addContent($labelText)
-            ->setAttribute('for', $for)
-            ->setAttribute('class', 'form-label');
-        $this->addChild($label);
-        return $this;
-    }
-
-    public function setErrorMessage(string $message): self
-    {
-        $error = (new Node())->setTagName('div')
-            ->addContent($message)
-            ->setAttribute('class', 'error-message');
-        $this->addChild($error);
-        return $this;
+        return "<li{$this->renderAttributes()}>{$this->content}{$this->renderChild()}</li>";
     }
 }
 
-$inputNode = (new InputNode())
-    ->setInput('text', 'input-field', 'Enter your name')
-    ->setLabel('Name', 'input-field')
-    ->setErrorMessage('Name is required');
 
-echo $inputNode->render();
+$root = new Div();
+$root->setId('section')
+    ->setAttribute('class', 'content dark')
+    ->addChild((new Span())->addContent('test'));
+
+$input = (new Input())->setType('text')
+    ->setAttribute('class', 'form-control is-invalid')
+    ->setId('name-input')
+    ->setPlaceholder('Name');
+$errorFeedback = (new Div())->setAttribute('class', 'valid-feedback')->addContent('Name is required');
+$input->addChild($errorFeedback);
+
+$root->addChild($input);
+
+$list = (new ListNode('ol'))->addListItem('Item 1')->addListItem('Item 2');
+$root->addChild($list);
+
+$list1 = (new ListNode('ul'))->addListItem('Item 1')->addListItem('Item 2');
+$root->addChild($list1);
+
 
 ?>
 
@@ -159,8 +165,8 @@ echo $inputNode->render();
     <title>Document</title>
 </head>
 <body>
-<div id="section" class="content dark">
-    <?php echo $inputNode->render(); ?>
-</div>
+
+<?php echo $root->render(); ?>
+
 </body>
 </html>
