@@ -142,9 +142,7 @@ $input = (new Input())->setType('text')
     ->setId('name-input')
     ->setPlaceholder('Name');
 $errorFeedback = (new Div())->setAttribute('class', 'valid-feedback')->addContent('Name is required');
-$input->addChild($errorFeedback);
 
-$root->addChild($input);
 
 $list = (new ListNode('ol'))->addListItem('Item 1')->addListItem('Item 2');
 $root->addChild($list);
@@ -165,7 +163,11 @@ $root->addChild($list1);
     <title>Document</title>
 </head>
 <body>
-
+<div>
+    <label for="" class="form-label"></label>
+    <?php echo $input->render(); ?>
+    <div class="invalid-feedback"><?php echo $errorFeedback->render(); ?></div>
+</div>
 <?php echo $root->render(); ?>
 
 </body>
